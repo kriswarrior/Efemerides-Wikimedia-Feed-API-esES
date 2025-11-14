@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Efemérides — Tu día en la Historia</title>
+  <meta name="description" content="Introduce tu día y mes de nacimiento y descubre eventos históricos, nacimientos, fallecimientos y festividades que ocurrieron ese día.">
+  <link rel="preconnect" href="https://api.wikimedia.org" crossorigin>
+  <style>
+    /* ===== Design System (light ↔ dark) ===== */
+    :root{
+      --bg: #f7f8fb;           /* canvas */
+      --surface: #ffffff;       /* cards */
+      --text: #0f172a;          /* primary text */
+      --muted: #64748b;         /* secondary */
+      --border: #e5e7eb;        /* hairline */
+      --accent: #2563eb;        /* brand */
+      --accent-2: #0ea5e9;      /* gradient pair */
+      --focus: #93c5fd;         /* focus ring */
+      --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b0d10; --surface:#0f1216; --text:#e5e7eb; --muted:#94a3b8; --border:#1f2937; --accent:#60a5fa; --accent-2:#22d3ee; --focus:#1d4ed8; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+      }
+    }
+
+    /* ===== Base ===== */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background: var(--bg); color: var(--text); -webkit-font-smoothing:antialiased; text-rendering: optimizeLegibility;
+    }
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* ===== Layout ===== */
+    .wrap{max-width:1200px; margin:0 auto; padding:24px clamp(16px, 2.5vw, 32px)}
+    header.wrap{padding-top:28px; padding-bottom:8px}
+
+    .app{display:grid; grid-template-columns: 1fr; gap:20px; align-items:start}
+    @media(min-width:960px){ .app{grid-template-columns: 320px 1fr; gap:24px} }
+
+    /* ===== Header ===== */
+    .brand{display:flex; align-items:center; gap:10px}
+    .logo{width:28px; height:28px; border-radius:6px; background:linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow:var(--shadow)}
+    h1{font-size: clamp(20px, 2.6vw, 28px); margin:0}
+
+    .lede{margin-top:8px; color:var(--muted); font-size:14px}
+
+    /* ===== Card / Panel ===== */
+    .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow)}
+    .card .pad{padding:16px}
+
+    /* ===== Form ===== */
+    .form{display:grid; gap:12px}
+    .row{display:flex; gap:10px; align-items:end}
+    label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px}
+    select{appearance:none; border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:10px; padding:12px 14px; min-width:140px}
+    select:focus{outline:none; border-color:var(--focus); box-shadow:0 0 0 4px color-mix(in oklab, var(--focus) 30%, transparent)}
+
+    .btn{padding:12px 16px; border-radius:10px; border:1px solid color-mix(in oklab, var(--accent) 60%, #fff 40%); color:#fff; background: linear-gradient(135deg, var(--accent), var(--accent-2)); font-weight:700; cursor:pointer; transition: transform .06s ease, filter .2s ease}
+    .btn:hover{filter:saturate(1.05) brightness(1.03)}
+    .btn:active{transform: translateY(1px)}
+
+    .helper{font-size:12px; color:var(--muted)}
+
+    /* ===== Tabs (sticky on desktop) ===== */
+    .tabs{display:flex; gap:8px; flex-wrap:wrap; padding:10px 12px; border-top:1px solid var(--border)}
+    .tab{padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; font-size:13px}
+    .tab.active{border-color: color-mix(in oklab, var(--accent) 40%, var(--border)); background: color-mix(in oklab, var(--accent) 12%, transparent)}
+
+    /* ===== Results ===== */
+    .results{display:grid; grid-template-columns: 1fr; gap:12px}
+    @media(min-width:720px){ .results{grid-template-columns: repeat(2,1fr)} }
+    @media(min-width:1200px){ .results{grid-template-columns: repeat(3,1fr)} }
+
+    .item{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; box-shadow:var(--shadow); opacity:0; transform: translateY(6px); animation:fadeIn .35s ease forwards}
+    .year{display:inline-grid; place-items:center; font-weight:800; font-size:14px; width:54px; height:28px; border-radius:999px; background: color-mix(in oklab, var(--accent) 16%, var(--surface)); border:1px solid color-mix(in oklab, var(--accent) 40%, var(--border)); margin-bottom:8px}
+    .text{font-size:15px; line-height:1.5}
+
+    @keyframes fadeIn{to{opacity:1; transform:none}}
+
+    /* ===== Skeleton ===== */
+    .skeleton{height:82px; border-radius:12px; border:1px solid var(--border); background: linear-gradient(100deg, color-mix(in oklab, var(--surface) 86%, #fff 14%), color-mix(in oklab, var(--surface) 70%, #fff 30%), color-mix(in oklab, var(--surface) 86%, #fff 14%)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite}
+    @keyframes shimmer{to{background-position: -200% 0}}
+
+    /* ===== Footer ===== */
+    footer{margin:32px 0 80px}
+    .sig{display:grid; gap:6px; color:var(--muted); font-size:14px}
+    .sig a{color:var(--accent)}
+
+    /* ===== Utilities ===== */
+    .hide{display:none}
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Efemérides</h1>
+    </div>
+    <p class="lede">Ingresa tu <strong>día</strong> y <strong>mes</strong> para ver eventos históricos, nacimientos, fallecimientos y festividades que coinciden con tu fecha. Fuente: Wikipedia (Wikimedia Feed API).</p>
+  </header>
+
+  <main class="wrap app">
+    <!-- Sidebar Panel -->
+    <section class="card" aria-labelledby="panel-title">
+      <div class="pad">
+        <h2 id="panel-title" style="margin:0 0 8px; font-size:18px">Tu fecha</h2>
+        <form class="form" id="form">
+          <div>
+            <label for="month">Mes</label>
+            <select id="month" required>
+              <option value="" disabled selected>Selecciona…</option>
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div>
+            <label for="day">Día</label>
+            <select id="day" required>
+              <option value="" disabled selected>Selecciona…</option>
+            </select>
+          </div>
+          <div class="row">
+            <button class="btn" id="btn" type="submit">Ver resultados</button>
+          </div>
+          <p class="helper">No usamos tu año. Solo <strong>mes</strong> y <strong>día</strong>.</p>
+        </form>
+      </div>
+      <div class="tabs" id="tabs" hidden>
+        <button class="tab active" data-tab="events">Eventos</button>
+        <button class="tab" data-tab="births">Nacimientos</button>
+        <button class="tab" data-tab="deaths">Fallecimientos</button>
+        <button class="tab" data-tab="holidays">Festividades</button>
+      </div>
+    </section>
+
+    <!-- Results Panel -->
+    <section class="content">
+      <div id="results" class="results"></div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p class="helper">Hecho con la <strong>Wikimedia Feed API</strong>. Los textos y enlaces provienen de Wikipedia en español. Esta demo no guarda tu información.</p>
+    <div class="sig">
+      <strong>Cristhian Guerrero</strong>
+      <span>Cybersecurity Professional &amp; Operations Leader</span>
+      <a href="mailto:criswarriorz2003@gmail.com">criswarriorz2003@gmail.com</a>
+      <a href="https://www.linkedin.com/in/cristhian-guerrero-z" target="_blank" rel="noopener">linkedin.com/in/cristhian-guerrero-z</a>
+      <a href="https://github.com/kriswarrior" target="_blank" rel="noopener">github.com/kriswarrior</a>
+      <a href="https://kriswarrior.github.io/Cristhian-Guerrero-Zaldivar/" target="_blank" rel="noopener">CV</a>
+    </div>
+  </footer>
+
+  <script>
+    const API_BASE = 'https://api.wikimedia.org/feed/v1/wikipedia/es/onthisday/all';
+
+    const $form = document.getElementById('form');
+    const $month = document.getElementById('month');
+    const $day = document.getElementById('day');
+    const $results = document.getElementById('results');
+    const $tabs = document.getElementById('tabs');
+
+    const state = { data: null, active: 'events' };
+
+    // Populate days by month
+    $month.addEventListener('change', fillDays);
+    function fillDays(){
+      const m = $month.value; if(!m) return;
+      const daysInMonth = { '01':31,'02':29,'03':31,'04':30,'05':31,'06':30,'07':31,'08':31,'09':30,'10':31,'11':30,'12':31 }[m];
+      const current = $day.value;
+      $day.innerHTML = '<option value="" disabled '+(current? '' : 'selected')+'>Selecciona…</option>' + Array.from({length:daysInMonth}, (_,i)=>{
+        const d = String(i+1).padStart(2,'0');
+        const sel = d===current ? ' selected' : '';
+        return `<option value="${d}"${sel}>${i+1}</option>`;
+      }).join('');
+    }
+
+    // Prefill with today
+    (function init(){
+      const today = new Date();
+      const m = String(today.getMonth()+1).padStart(2,'0');
+      const d = String(today.getDate()).padStart(2,'0');
+      $month.value = m; fillDays(); $day.value = d;
+      // Seed an initial load for a lively feel
+      fetchData();
+    })();
+
+    $form.addEventListener('submit', (e)=>{ e.preventDefault(); fetchData(); });
+
+    async function fetchData(){
+      const month = $month.value; const day = $day.value;
+      if(!month || !day){ pulse($form); return; }
+      const url = `${API_BASE}/${month}/${day}`;
+      setLoading();
+      try{
+        const res = await fetch(url, { headers: { 'accept': 'application/json' } });
+        if(!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        state.data = normalize(data);
+        state.active = 'events';
+        $tabs.hidden = false;
+        renderTabs();
+        renderList();
+      }catch(err){
+        showError(err.message);
+      }
+    }
+
+    $tabs.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.tab');
+      if(!btn) return;
+      state.active = btn.dataset.tab;
+      for(const t of $tabs.querySelectorAll('.tab')) t.classList.toggle('active', t===btn);
+      renderList();
+    });
+
+    function setLoading(){
+      $results.innerHTML = '';
+      for(let i=0;i<6;i++){
+        const s = document.createElement('div'); s.className='skeleton';
+        $results.appendChild(s);
+      }
+    }
+
+    function showError(msg){
+      $results.innerHTML = `<div class="item" style="border-style:dashed"><div class="text">No pudimos cargar los datos. ${escapeHtml(msg)}. Intenta de nuevo más tarde.</div></div>`;
+      $tabs.hidden = true;
+    }
+
+    function normalize(raw){
+      const pick = k => Array.isArray(raw?.[k]) ? raw[k] : [];
+      const mapEntry = (e)=>({
+        year: e.year,
+        text: e.text,
+        link: e.pages?.[0]?.content_urls?.desktop?.page || e.pages?.[0]?.content_urls?.mobile?.page || null,
+        title: e.pages?.[0]?.titles?.normalized || e.pages?.[0]?.titles?.display || null
+      });
+      return {
+        events: pick('events').map(mapEntry),
+        births: pick('births').map(mapEntry),
+        deaths: pick('deaths').map(mapEntry),
+        holidays: pick('holidays').map(h=>({ year: '', text: h.text || h.title || 'Festividad', link: h.pages?.[0]?.content_urls?.desktop?.page || null, title: h.pages?.[0]?.titles?.normalized || null }))
+      }
+    }
+
+    function renderTabs(){
+      ['events','births','deaths','holidays'].forEach(key=>{
+        const btn = $tabs.querySelector(`[data-tab="${key}"]`);
+        const count = state.data[key]?.length || 0;
+        btn.textContent = labelFor(key) + (count? ` (${count})`: '');
+      });
+    }
+
+    function renderList(){
+      const arr = state.data?.[state.active] || [];
+      if(arr.length===0){
+        $results.innerHTML = `<div class="item"><div class="text">No encontramos resultados en «${labelFor(state.active)}». Prueba con otra fecha.</div></div>`;
+        return;
+      }
+      $results.innerHTML = arr.map(renderItem).join('');
+    }
+
+    function renderItem(e){
+      const year = e.year? e.year : '—';
+      const link = e.link ? `<br><a href="${e.link}" target="_blank" rel="noopener">Ver en Wikipedia →</a>` : '';
+      return `<article class="item"><div class="year">${year}</div><div class="text">${escapeHtml(e.text||'')}${link}</div></article>`;
+    }
+
+    function labelFor(key){
+      return ({events:'Eventos', births:'Nacimientos', deaths:'Fallecimientos', holidays:'Festividades'})[key] || key;
+    }
+
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",
+        ">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+    }
+
+    function pulse(el){ el.animate([{boxShadow:'0 0 0 0 rgba(37,99,235,0.0)'},{boxShadow:'0 0 0 6px rgba(37,99,235,0.25)'},{boxShadow:'0 0 0 0 rgba(37,99,235,0.0)'}],{duration:600, easing:'ease-out'}) }
+  </script>
+</body>
+</html>
